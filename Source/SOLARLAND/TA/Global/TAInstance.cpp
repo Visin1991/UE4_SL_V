@@ -49,7 +49,7 @@ void UTAInstance::TAServer()
 	UWorld* world = GetWorld();
 	if (world == nullptr) { return; }
 
-	world->ServerTravel("/Game/TA/Ref/AbandonedFactory/Maps/Warehouse_01_day/Main_Warehouse_01?listen");
+	world->ServerTravel("/Game/TA/Global/Maps/TAServer?listen");
 	
 	if (m_mainMenuInstance != nullptr)
 	{
