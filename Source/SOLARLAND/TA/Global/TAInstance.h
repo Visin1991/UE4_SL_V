@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/GameInstance.h"
 #include "../UI/MenuInterface.h"
+#include "OnlineSubsystem.h"
 #include "TAInstance.generated.h"
 
 /**
@@ -51,4 +52,15 @@ private:
 
 	class UMainMenu* m_mainMenuInstance;
 	class UMenuWidget* m_inGameMenuInstance;
+
+
+	IOnlineSessionPtr m_sessionInterface;
+	TSharedPtr<class FOnlineSessionSearch> m_sessionSearch;
+
+
+	void OnCreateSessionComplete(FName _sessionName,bool _success);
+	void OnDestroySessionComplete(FName _sessionName, bool _success);
+	void OnFindSessionsComplete(bool _success);
+
+	void CreateSession();
 };

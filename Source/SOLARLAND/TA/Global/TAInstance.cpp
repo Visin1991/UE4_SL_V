@@ -11,6 +11,11 @@
 #include "../UI/MenuWidget.h"
 
 
+#include "OnlineSessionSettings.h"
+#include "OnlineSessionInterface.h"
+
+
+
 /*
 	1. Load The main menu UI Blueprint
 
@@ -19,6 +24,28 @@
 				MainMenu::Server()-->Call--->TAInstance::Server()
 		
 */
+
+//------------------------------------------------------------------------------------------------
+// Session Creation
+
+// void UTAInstance::Init() {......}        //config session callback functions......
+
+// void UTAInstance::TAServer() {......}    //TAServer implement the ServerTravel ....
+
+// void UTAInstance::Server() {......}      //Server Function will create a session for us
+
+//------------------------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------------------------
+// Session Creation & Destroy & SessionSearch
+
+// 在Session Creation 阶段我们需要对Session 进行配置：是否进行LAN匹配，链接数量，是否曝光
+
+// 在Session Find 阶段我们也需要对SessionSearch 进行配置：是否进行LAN匹配，第三方SDK。。。。。。等等
+
+//------------------------------------------------------------------------------------------------
+
+#define SESSION_NAME TEXT("My SessionGame")
 
 
 UTAInstance::UTAInstance(const FObjectInitializer& ObjectInitializer)
@@ -34,7 +61,83 @@ UTAInstance::UTAInstance(const FObjectInitializer& ObjectInitializer)
 
 void UTAInstance::Init()
 {
-	
+	IOnlineSubsystem* subsystem =  IOnlineSubsystem::Get();
+	if (subsystem != nullptr)
+	{
+		UE_LOG(LogTemp,Warning,TEXT("Found Subsystem %s"),*subsystem->GetSubsystemName().ToString());
+		m_sessionInterface = subsystem->GetSessionInterface();
+		if (m_sessionInterface.IsValid())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Get A SessionInterface"));
+			m_sessionInterface->OnCreateSessionCompleteDelegates.AddUObject(this, &UTAInstance::OnCreateSessionComplete);
+			m_sessionInterface->OnDestroySessionCompleteDelegates.AddUObject(this, &UTAInstance::OnDestroySessionComplete);
+			m_sessionInterface->OnFindSessionsCompleteDelegates.AddUObject(this, &UTAInstance::OnFindSessionsComplete);
+
+			m_sessionSearch = MakeShareable(new FOnlineSessionSearch());
+			if (m_sessionSearch.IsValid())
+			{
+				UE_LOG(LogTemp,Warning,TEXT("Start Find Session"));
+				m_sessionSearch->bIsLanQuery = true;
+				//m_sessionSearch->QuerySettings.Set()
+				m_sessionInterface->FindSessions(0, m_sessionSearch.ToSharedRef());
+			}
+		}
+	}
+	else
+	{
+		V_LOG("Could Not found subsystem");
+	}
+}
+
+void UTAInstance::OnCreateSessionComplete(FName _sessionName, bool _success)
+{
+	if (!_success) {
+		UE_LOG(LogTemp,Warning,TEXT("Could not create session"));
+		return;
+	}
+
+	UE_LOG(LogTemp,Warning,TEXT("OnCreateSession Complete...... Start ServerTravel"));
+	TAServer();
+}
+
+void UTAInstance::OnDestroySessionComplete(FName _sessionName, bool _success)
+{
+	if (_success)
+	{
+		CreateSession();
+	}
+}
+
+void UTAInstance::OnFindSessionsComplete(bool _success)
+{
+	if (_success)
+	{
+		UE_LOG(LogTemp,Warning,TEXT("On Find Session Complete......Success"));
+
+		if (m_sessionSearch.IsValid())
+		{
+			for (auto& searchResult : m_sessionSearch->SearchResults)
+			{
+				UE_LOG(LogTemp,Warning,TEXT("Found session names: %s"),*searchResult.GetSessionIdStr());
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("On Find Session Complete....Failed...."));
+	}
+}
+
+void UTAInstance::CreateSession()
+{
+	if (m_sessionInterface.IsValid())
+	{
+		FOnlineSessionSettings sessionSettings;
+		sessionSettings.bIsLANMatch = true;
+		sessionSettings.NumPublicConnections = 10;
+		sessionSettings.bShouldAdvertise = true;
+		m_sessionInterface->CreateSession(0, SESSION_NAME, sessionSettings);
+	}
 }
 
 void UTAInstance::TAServer()
@@ -59,7 +162,20 @@ void UTAInstance::TAServer()
 
 void UTAInstance::Server()
 {
-	TAServer();
+	if (m_sessionInterface.IsValid())
+	{
+		auto existingSession = m_sessionInterface->GetNamedSession(SESSION_NAME);
+		if (existingSession != nullptr)
+		{
+			//If the session already exist, we will destroy it. And the the destroy session success,we will create the session again
+			m_sessionInterface->DestroySession(SESSION_NAME);
+		}
+		else
+		{
+			//If the session not exist, we create the session directly
+			CreateSession();
+		}
+	}
 }
 
 void UTAInstance::TAJoin(const FString& _address)
