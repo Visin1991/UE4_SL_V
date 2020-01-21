@@ -17,16 +17,20 @@ class SOLARLAND_API UTAInstance : public UGameInstance, public IMenuInterface
 	//Inject the IMenuInterface to our UTAInstance
 
 	GENERATED_BODY()
+
+public:
+	virtual void Server();
+	virtual void JoinServer(const FString& _address);
+	virtual void LoadMainMenu() { TALoadMainMenu(); }
+	virtual void RefreshServerList();
+
 public:
 	UTAInstance(const FObjectInitializer& ObjectInitializer);
+
 	virtual void Init();
 
 	UFUNCTION(Exec)
 	void TAServer();
-
-	void Server();
-
-	void JoinServer(const FString& _address);
 
 	UFUNCTION(Exec)
 	void TAJoin(const FString& address);
@@ -42,8 +46,6 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void TALoadInGameMenu();
-
-	FORCEINLINE void LoadMainMenu(){ TALoadMainMenu();}
 
 private:
 

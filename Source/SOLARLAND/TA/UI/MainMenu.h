@@ -15,6 +15,7 @@ class SOLARLAND_API UMainMenu : public UMenuWidget
 	GENERATED_BODY()
 
 public:
+	UMainMenu(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION()
 	void StartServer();
@@ -28,6 +29,9 @@ public:
 	UFUNCTION()
 	void JoinServer();
 
+	void SetServerList(TArray<FString> _serverName);
+
+	void SelectedIndexFunc(uint32 _index);
 
 protected:
 	virtual bool Initialize() override;
@@ -54,6 +58,14 @@ private:
 	UPROPERTY(meta = (BindWidget))
 	class UWidget* MainMenu;
 
+	//UPROPERTY(meta = (BindWidget))
+	//class UEditableTextBox* IPAddressField;
+
 	UPROPERTY(meta = (BindWidget))
-	class UEditableTextBox* IPAddressField;
+	class UPanelWidget* ServerList;
+
+	TSubclassOf<class UUserWidget> m_ServerRowClass;
+
+	TOptional<uint32> SelectedIndex;
+
 };

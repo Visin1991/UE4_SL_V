@@ -72,15 +72,6 @@ void UTAInstance::Init()
 			m_sessionInterface->OnCreateSessionCompleteDelegates.AddUObject(this, &UTAInstance::OnCreateSessionComplete);
 			m_sessionInterface->OnDestroySessionCompleteDelegates.AddUObject(this, &UTAInstance::OnDestroySessionComplete);
 			m_sessionInterface->OnFindSessionsCompleteDelegates.AddUObject(this, &UTAInstance::OnFindSessionsComplete);
-
-			m_sessionSearch = MakeShareable(new FOnlineSessionSearch());
-			if (m_sessionSearch.IsValid())
-			{
-				UE_LOG(LogTemp,Warning,TEXT("Start Find Session"));
-				m_sessionSearch->bIsLanQuery = true;
-				//m_sessionSearch->QuerySettings.Set()
-				m_sessionInterface->FindSessions(0, m_sessionSearch.ToSharedRef());
-			}
 		}
 	}
 	else
@@ -88,6 +79,46 @@ void UTAInstance::Init()
 		V_LOG("Could Not found subsystem");
 	}
 }
+
+//====================================================================================
+//UIManager
+
+void UTAInstance::Server()
+{
+	if (m_sessionInterface.IsValid())
+	{
+		auto existingSession = m_sessionInterface->GetNamedSession(SESSION_NAME);
+		if (existingSession != nullptr)
+		{
+			//If the session already exist, we will destroy it. And the the destroy session success,we will create the session again
+			m_sessionInterface->DestroySession(SESSION_NAME);
+		}
+		else
+		{
+			//If the session not exist, we create the session directly
+			CreateSession();
+		}
+	}
+}
+
+void UTAInstance::JoinServer(const FString& _address)
+{
+	TAJoin(_address);
+}
+
+void UTAInstance::RefreshServerList()
+{
+	m_sessionSearch = MakeShareable(new FOnlineSessionSearch());
+	if (m_sessionSearch.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Start Find Session"));
+		m_sessionSearch->bIsLanQuery = true;
+		//m_sessionSearch->QuerySettings.Set()
+		m_sessionInterface->FindSessions(0, m_sessionSearch.ToSharedRef());
+	}
+}
+
+//=====================================================================================
 
 void UTAInstance::OnCreateSessionComplete(FName _sessionName, bool _success)
 {
@@ -110,23 +141,39 @@ void UTAInstance::OnDestroySessionComplete(FName _sessionName, bool _success)
 
 void UTAInstance::OnFindSessionsComplete(bool _success)
 {
-	if (_success)
-	{
-		UE_LOG(LogTemp,Warning,TEXT("On Find Session Complete......Success"));
-
-		if (m_sessionSearch.IsValid())
-		{
-			for (auto& searchResult : m_sessionSearch->SearchResults)
-			{
-				UE_LOG(LogTemp,Warning,TEXT("Found session names: %s"),*searchResult.GetSessionIdStr());
-			}
-		}
-	}
-	else
+	if (!_success)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("On Find Session Complete....Failed...."));
+		return;
 	}
+
+	UE_LOG(LogTemp,Warning,TEXT("On Find Session Complete......Success"));
+
+	if (!m_sessionSearch.IsValid())
+	{
+		UE_LOG(LogTemp,Warning,TEXT("SessionSearch is not Valid"));
+	}
+
+	//Here we should have a function pointer. to let our other manager to bind it
+	//currently we can just hard code .
+
+	TArray<FString> serverNames;
+		
+	for (auto& searchResult : m_sessionSearch->SearchResults)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Found session names: %s"), *searchResult.GetSessionIdStr());
+		serverNames.Add(searchResult.GetSessionIdStr());
+	}
+
+	if (m_mainMenuInstance != nullptr)
+	{
+		UE_LOG(LogTemp,Warning,TEXT("Find %d servers"),serverNames.Num());
+		m_mainMenuInstance->SetServerList(serverNames);
+	}
+	
 }
+
+//=====================================================================================
 
 void UTAInstance::CreateSession()
 {
@@ -160,24 +207,6 @@ void UTAInstance::TAServer()
 	}
 }
 
-void UTAInstance::Server()
-{
-	if (m_sessionInterface.IsValid())
-	{
-		auto existingSession = m_sessionInterface->GetNamedSession(SESSION_NAME);
-		if (existingSession != nullptr)
-		{
-			//If the session already exist, we will destroy it. And the the destroy session success,we will create the session again
-			m_sessionInterface->DestroySession(SESSION_NAME);
-		}
-		else
-		{
-			//If the session not exist, we create the session directly
-			CreateSession();
-		}
-	}
-}
-
 void UTAInstance::TAJoin(const FString& _address)
 {
 	UEngine* engine = GetEngine();
@@ -197,11 +226,6 @@ void UTAInstance::TAJoin(const FString& _address)
 		m_mainMenuInstance->TearDown();
 	}
 
-}
-
-void UTAInstance::JoinServer(const FString& _address)
-{
-	TAJoin(_address);
 }
 
 void UTAInstance::TAJoinVisin()
