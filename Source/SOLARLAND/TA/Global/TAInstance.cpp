@@ -72,6 +72,7 @@ void UTAInstance::Init()
 			m_sessionInterface->OnCreateSessionCompleteDelegates.AddUObject(this, &UTAInstance::OnCreateSessionComplete);
 			m_sessionInterface->OnDestroySessionCompleteDelegates.AddUObject(this, &UTAInstance::OnDestroySessionComplete);
 			m_sessionInterface->OnFindSessionsCompleteDelegates.AddUObject(this, &UTAInstance::OnFindSessionsComplete);
+			m_sessionInterface->OnJoinSessionCompleteDelegates.AddUObject(this, &UTAInstance::OnJoinSessionComplete);
 		}
 	}
 	else
@@ -101,9 +102,21 @@ void UTAInstance::Server()
 	}
 }
 
-void UTAInstance::JoinServer(const FString& _address)
+void UTAInstance::JoinServer(uint32 _index)
 {
-	TAJoin(_address);
+	V_LOG("JoinServer Function Get Call......");
+
+	//TAJoin(_address);
+	if (!m_sessionInterface.IsValid()) { V_LOG("m_sessionInterface is nullptr"); return; }
+	if (!m_sessionSearch.IsValid()) { V_LOG("m_sessionSearch is not valid"); return; }
+
+	if (m_mainMenuInstance != nullptr)
+	{
+		m_mainMenuInstance->TearDown();
+	}
+
+	m_sessionInterface->JoinSession(0, SESSION_NAME, m_sessionSearch->SearchResults[_index]);
+
 }
 
 void UTAInstance::RefreshServerList()
@@ -171,6 +184,33 @@ void UTAInstance::OnFindSessionsComplete(bool _success)
 		m_mainMenuInstance->SetServerList(serverNames);
 	}
 	
+}
+
+void UTAInstance::OnJoinSessionComplete(FName _sessionName, EOnJoinSessionCompleteResult::Type _result)
+{
+
+	if (!m_sessionInterface.IsValid()) {
+		V_LOG("m_sessionInterface is nullptr");
+		return;
+	}
+
+	FString address;
+	if (!m_sessionInterface->GetResolvedConnectString(_sessionName, address))
+	{
+		V_LOG("Could not ge connect string!!!");
+		return;
+	}
+
+	UEngine* engine = GetEngine();
+	if (engine == nullptr) { return; }
+
+	APlayerController* playerController = GetFirstLocalPlayerController();
+	if (!ensure(playerController != nullptr))
+	{
+		engine->AddOnScreenDebugMessage(0, 2, FColor::Red, FString::Printf(TEXT("PlayerController Not Find")));
+		return;
+	}
+	playerController->ClientTravel(FString(*address), ETravelType::TRAVEL_Absolute);
 }
 
 //=====================================================================================

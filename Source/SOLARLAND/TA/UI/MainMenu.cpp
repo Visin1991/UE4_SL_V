@@ -103,6 +103,7 @@ void UMainMenu::JoinServer()
 	if (m_menuInterface == nullptr) { V_LOG("m_Interface is nullptr"); return; }
 
 	//m_menuInterface->RefreshServerList();
+	m_menuInterface->JoinServer(SelectedIndex.GetValue());
 }
 
 void UMainMenu::OpenConnectionMenu()

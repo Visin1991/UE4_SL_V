@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
+#include "Interfaces/OnlineSessionInterface.h"
 #include "MenuInterface.generated.h"
 
 //To Do ....  This should be called MenuManager instead of MenuInterface
@@ -25,8 +26,8 @@ class SOLARLAND_API IMenuInterface
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
 	virtual void Server() = 0;
-	virtual void JoinServer(const FString& Address) = 0;
+	virtual void JoinServer(uint32 index) = 0;
 	virtual void LoadMainMenu() = 0;
 	virtual void RefreshServerList() = 0;
-
+	virtual void OnJoinSessionComplete(FName _sessionName, EOnJoinSessionCompleteResult::Type _result) = 0;
 };

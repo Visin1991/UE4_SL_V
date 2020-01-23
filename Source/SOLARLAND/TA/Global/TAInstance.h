@@ -20,9 +20,10 @@ class SOLARLAND_API UTAInstance : public UGameInstance, public IMenuInterface
 
 public:
 	virtual void Server();
-	virtual void JoinServer(const FString& _address);
+	virtual void JoinServer(uint32 _index);
 	virtual void LoadMainMenu() { TALoadMainMenu(); }
 	virtual void RefreshServerList();
+	virtual void OnJoinSessionComplete(FName _sessionName, EOnJoinSessionCompleteResult::Type _result);
 
 public:
 	UTAInstance(const FObjectInitializer& ObjectInitializer);
