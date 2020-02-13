@@ -6,6 +6,8 @@
 #include "GameFramework/PlayerController.h"
 
 #include "UObject/ConstructorHelpers.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "Blueprint/UserWidget.h"
 #include "../UI/MainMenu.h"
 #include "../UI/MenuWidget.h"
@@ -13,6 +15,10 @@
 
 #include "OnlineSessionSettings.h"
 #include "OnlineSessionInterface.h"
+
+#include "TAUIManager.h"
+#include "../UI/TAWidget.h"
+
 
 
 
@@ -47,20 +53,26 @@
 
 #define SESSION_NAME TEXT("My SessionGame")
 
+UTAInstance* UTAInstance::m_TAInstance = nullptr;
 
 UTAInstance::UTAInstance(const FObjectInitializer& ObjectInitializer)
 {
-	static ConstructorHelpers::FClassFinder<UUserWidget> bp_MainMenu(TEXT("/Game/TA/Global/UI/WBP_Main"));
-	if (!ensure(bp_MainMenu.Class != nullptr))return;
-	m_MainMenuClass = bp_MainMenu.Class;
+	//static ConstructorHelpers::FClassFinder<UUserWidget> bp_MainMenu(TEXT("/Game/TA/Global/UI/WBP_Main"));
+	//if (!ensure(bp_MainMenu.Class != nullptr))return;
+	//m_MainMenuClass = bp_MainMenu.Class;
 
-	static ConstructorHelpers::FClassFinder<UUserWidget> bp_InGameMenu(TEXT("/Game/TA/Global/UI/WBP_InGameMenu"));
-	if (!ensure(bp_InGameMenu.Class != nullptr))return;
-	m_InGameMenuClass = bp_InGameMenu.Class;
+	//static ConstructorHelpers::FClassFinder<UUserWidget> bp_InGameMenu(TEXT("/Game/TA/Global/UI/WBP_InGameMenu"));
+	//if (!ensure(bp_InGameMenu.Class != nullptr))return;
+	//m_InGameMenuClass = bp_InGameMenu.Class;
 }
 
 void UTAInstance::Init()
 {
+	m_TAInstance = this;
+	m_TAUIManager = NewObject<UTAUIManager>(GetTransientPackage(), UTAUIManager::StaticClass());
+
+	//-----------------------------------------------------------
+
 	IOnlineSubsystem* subsystem =  IOnlineSubsystem::Get();
 	if (subsystem != nullptr)
 	{
@@ -81,8 +93,17 @@ void UTAInstance::Init()
 	}
 }
 
+UTAInstance* UTAInstance::GetTAGameInstance()
+{
+	return m_TAInstance;
+}
+
+UTAUIManager* UTAInstance::GetUIManager()
+{
+	return m_TAUIManager;
+}
+
 //====================================================================================
-//UIManager
 
 void UTAInstance::Server()
 {
@@ -110,10 +131,10 @@ void UTAInstance::JoinServer(uint32 _index)
 	if (!m_sessionInterface.IsValid()) { V_LOG("m_sessionInterface is nullptr"); return; }
 	if (!m_sessionSearch.IsValid()) { V_LOG("m_sessionSearch is not valid"); return; }
 
-	if (m_mainMenuInstance != nullptr)
-	{
-		m_mainMenuInstance->TearDown();
-	}
+	//if (m_mainMenuInstance != nullptr)
+	//{
+	//	m_mainMenuInstance->TearDown();
+	//}
 
 	m_sessionInterface->JoinSession(0, SESSION_NAME, m_sessionSearch->SearchResults[_index]);
 
@@ -141,7 +162,7 @@ void UTAInstance::OnCreateSessionComplete(FName _sessionName, bool _success)
 	}
 
 	UE_LOG(LogTemp,Warning,TEXT("OnCreateSession Complete...... Start ServerTravel"));
-	TAServer();
+	TAServerTravel();
 }
 
 void UTAInstance::OnDestroySessionComplete(FName _sessionName, bool _success)
@@ -178,17 +199,18 @@ void UTAInstance::OnFindSessionsComplete(bool _success)
 		serverNames.Add(searchResult.GetSessionIdStr());
 	}
 
-	if (m_mainMenuInstance != nullptr)
-	{
-		UE_LOG(LogTemp,Warning,TEXT("Find %d servers"),serverNames.Num());
-		m_mainMenuInstance->SetServerList(serverNames);
-	}
+	OnFindSessionsCompleteEvent.Broadcast(serverNames);
+
+	//if (m_mainMenuInstance != nullptr)
+	//{
+	//	UE_LOG(LogTemp,Warning,TEXT("Find %d servers"),serverNames.Num());
+	//	m_mainMenuInstance->SetServerList(serverNames);
+	//}
 	
 }
 
 void UTAInstance::OnJoinSessionComplete(FName _sessionName, EOnJoinSessionCompleteResult::Type _result)
 {
-
 	if (!m_sessionInterface.IsValid()) {
 		V_LOG("m_sessionInterface is nullptr");
 		return;
@@ -210,24 +232,16 @@ void UTAInstance::OnJoinSessionComplete(FName _sessionName, EOnJoinSessionComple
 		engine->AddOnScreenDebugMessage(0, 2, FColor::Red, FString::Printf(TEXT("PlayerController Not Find")));
 		return;
 	}
+
+	//UE_LOG(LogTemp, Warning, TEXT("OnJoinSessionComplete  Start Client Travel %s"), *address);
+
+	//Game Launghed from editor will have diffirent port which game launghed from command
 	playerController->ClientTravel(FString(*address), ETravelType::TRAVEL_Absolute);
 }
 
 //=====================================================================================
 
-void UTAInstance::CreateSession()
-{
-	if (m_sessionInterface.IsValid())
-	{
-		FOnlineSessionSettings sessionSettings;
-		sessionSettings.bIsLANMatch = true;
-		sessionSettings.NumPublicConnections = 10;
-		sessionSettings.bShouldAdvertise = true;
-		m_sessionInterface->CreateSession(0, SESSION_NAME, sessionSettings);
-	}
-}
-
-void UTAInstance::TAServer()
+void UTAInstance::TAServerTravel()
 {
 	V_LOG(FString("TAHost......"));
 
@@ -241,10 +255,10 @@ void UTAInstance::TAServer()
 
 	world->ServerTravel("/Game/TA/Global/Maps/TAServer?listen");
 	
-	if (m_mainMenuInstance != nullptr)
-	{
-		m_mainMenuInstance->TearDown();
-	}
+	//if (m_mainMenuInstance != nullptr)
+	//{
+	//	m_mainMenuInstance->TearDown();
+	//}
 }
 
 void UTAInstance::TAJoin(const FString& _address)
@@ -261,10 +275,10 @@ void UTAInstance::TAJoin(const FString& _address)
 	}
 	playerController->ClientTravel(FString(*_address), ETravelType::TRAVEL_Absolute);
 
-	if (m_mainMenuInstance != nullptr)
-	{
-		m_mainMenuInstance->TearDown();
-	}
+	//if (m_mainMenuInstance != nullptr)
+	//{
+	//	m_mainMenuInstance->TearDown();
+	//}
 
 }
 
@@ -304,37 +318,98 @@ void UTAInstance::TAFindFirstLocalPlayer()
 
 void UTAInstance::TALoadMainMenu()
 {
-	if (!ensure(m_MainMenuClass != nullptr)) {
-		V_LOG(FString("m_MainMenuClass is Null"));
-		return;
-	}
+	//if (!ensure(m_MainMenuClass != nullptr)) {
+	//	V_LOG(FString("m_MainMenuClass is Null"));
+	//	return;
+	//}
 
-	m_mainMenuInstance = CreateWidget<UMainMenu>(this, m_MainMenuClass);
+	//m_mainMenuInstance = CreateWidget<UMainMenu>(this, m_MainMenuClass);
 
-	if (!ensure(m_mainMenuInstance != nullptr))
-	{
-		V_LOG(FString("m_MainMenuInstance is Null"));
-		return;
-	}
+	//if (!ensure(m_mainMenuInstance != nullptr))
+	//{
+	//	V_LOG(FString("m_MainMenuInstance is Null"));
+	//	return;
+	//}
 
-	m_mainMenuInstance->SetUp(this);
+	//m_mainMenuInstance->SetUp(this);
 }
 
 void UTAInstance::TALoadInGameMenu()
 {
-	if (!ensure(m_InGameMenuClass != nullptr)) {
-		V_LOG(FString("m_InGameMenuClass is Null"));
-		return;
-	}
+	//if (!ensure(m_InGameMenuClass != nullptr)) {
+	//	V_LOG(FString("m_InGameMenuClass is Null"));
+	//	return;
+	//}
 
-	UMenuWidget* inGameMenu = CreateWidget<UMenuWidget>(this, m_InGameMenuClass);
+	//UMenuWidget* inGameMenu = CreateWidget<UMenuWidget>(this, m_InGameMenuClass);
 
-	if (!ensure(inGameMenu != nullptr))
-	{
-		V_LOG(FString("inGameMenu is Null"));
-		return;
-	}
-	inGameMenu->SetUp(this);
+	//if (!ensure(inGameMenu != nullptr))
+	//{
+	//	V_LOG(FString("inGameMenu is Null"));
+	//	return;
+	//}
+	//inGameMenu->SetUp(this);
 }
 
+//===================================================================================
 
+
+void UTAInstance::CreateGame()
+{
+	if (!m_sessionInterface.IsValid())
+	{
+		UE_LOG(LogTemp,Warning,TEXT("m_sessionInterface is not valid...."));
+		return;
+	}
+
+	auto existingSession = m_sessionInterface->GetNamedSession(SESSION_NAME);
+
+	if (existingSession != nullptr)
+	{
+		//If the session already exist, we will destroy it. And when the  destroy session success,we will create the session again
+		m_sessionInterface->DestroySession(SESSION_NAME);
+	}
+	else
+	{
+		CreateSession();
+	}
+}
+
+void UTAInstance::JoinGame(int _index)
+{
+	if (!m_sessionInterface.IsValid()) { V_LOG("m_sessionInterface is nullptr"); return; }
+	if (!m_sessionSearch.IsValid()) { V_LOG("m_sessionSearch is not valid"); return; }
+	if (_index < 0 || m_sessionSearch->SearchResults.Num() < _index)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Server index out of range"));
+	}
+
+	UE_LOG(LogTemp,Warning,TEXT("Start Join Session : %s"), *(m_sessionSearch->SearchResults[_index].GetSessionIdStr()))
+	m_sessionInterface->JoinSession(0, SESSION_NAME, m_sessionSearch->SearchResults[_index]);
+}
+
+void UTAInstance::CreateSession()
+{
+	if (!m_sessionInterface.IsValid())
+	{
+		UE_LOG(LogTemp,Warning,TEXT("m_sessionInterface is nullptr"));
+		return;
+	}
+	FOnlineSessionSettings sessionSettings;
+	sessionSettings.bIsLANMatch = true;
+	sessionSettings.NumPublicConnections = 10;
+	sessionSettings.bShouldAdvertise = true;
+	m_sessionInterface->CreateSession(0, SESSION_NAME, sessionSettings);
+}
+
+void UTAInstance::BindServerMenuListener(UTAWidget* _listener)
+{
+	uptr_ServerMenuListener = _listener;
+	if (uptr_ServerMenuListener == nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Binding ServerMenuListener Failed..... passed nullptr parameter"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("BindServerMenuListener %s"), *(uptr_ServerMenuListener->GetName()));
+}

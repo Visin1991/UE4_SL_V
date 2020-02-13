@@ -13,13 +13,13 @@
 
 UMainMenu::UMainMenu(const FObjectInitializer& ObjectInitializer)
 {
-	ConstructorHelpers::FClassFinder<UUserWidget> bp_ServerRowClass(TEXT("/Game/TA/Global/UI/WBP_ServerRow"));
-	if (!ensure(bp_ServerRowClass.Class != nullptr))
-	{
-		UE_LOG(LogTemp,Warning,TEXT("/Game/TA/Global/UI/WBP_ServerRow not exist"));
-		return;
-	}
-	m_ServerRowClass = bp_ServerRowClass.Class;
+	//ConstructorHelpers::FClassFinder<UUserWidget> bp_ServerRowClass(TEXT("/Game/TA/Global/UI/WBP_ServerRow"));
+	//if (!ensure(bp_ServerRowClass.Class != nullptr))
+	//{
+	//	UE_LOG(LogTemp,Warning,TEXT("/Game/TA/Global/UI/WBP_ServerRow not exist"));
+	//	return;
+	//}
+	//m_ServerRowClass = bp_ServerRowClass.Class;
 
 }
 
